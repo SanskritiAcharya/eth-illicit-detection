@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.py[cod]
+.git/
+.ipynb_checkpoints/
+notebooks/
+data/raw/transactions.jsonl.gz
+data/processed/
+reports/figures/

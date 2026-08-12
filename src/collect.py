@@ -25,7 +25,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from .blockscout import fetch_transactions
+from .blockscout import fetch_transactions, fetch_transactions_rest
 
 ROOT = Path(__file__).resolve().parent.parent
 RAW = ROOT / "data" / "raw"
@@ -76,25 +76,29 @@ def collect(
     max_pages: int,
     workers: int,
     resume: bool = True,
+    source: str = "rest",
 ) -> dict:
     """Fetch transactions for each address and append them to the cache.
 
-    A small thread pool is used because the work is entirely network-bound, but
-    the worker count barely matters: the real throughput ceiling is the server's
-    budget of roughly 500 requests per fifteen minutes, and the shared RateLimiter
-    in src/blockscout.py paces every worker against it. More threads would only
-    mean more of them waiting.
+    A small thread pool is used because the work is entirely network-bound. For
+    the GraphQL source the worker count barely matters, because the real ceiling
+    is the server's budget of 500 requests per hour and the shared RateLimiter in
+    src/blockscout.py paces every worker against it. The REST source is far more
+    generous, so there the workers genuinely do run in parallel.
 
     Failures are recorded rather than raised. An address that times out (quirk 5,
     the mega-address problem) simply contributes zero transactions and is counted
     in the summary, so we can report honestly how much of the sample we got.
     """
+    fetcher = fetch_transactions_rest if source == "rest" else fetch_transactions
+
     done = already_collected(out_path) if resume else set()
     pending = [row for row in labels if row["address"] not in done]
 
     print(
         f"{len(labels)} labelled addresses, {len(done)} already cached, "
-        f"{len(pending)} to fetch ({workers} workers, <={max_pages} pages each)",
+        f"{len(pending)} to fetch via {source} "
+        f"({workers} workers, <={max_pages} pages each)",
         flush=True,
     )
     if not pending:
@@ -109,7 +113,7 @@ def collect(
 
     def worker(row: dict) -> None:
         try:
-            transactions = fetch_transactions(row["address"], max_pages=max_pages)
+            transactions = fetcher(row["address"], max_pages=max_pages)
             status = "ok"
         except Exception:
             # Quirk 5: mega-addresses and transient 5xx end up here. We keep the
@@ -173,6 +177,12 @@ def main() -> None:
         help="pages of 8 transactions per address; caps mega-addresses",
     )
     parser.add_argument("--workers", type=int, default=6, help="concurrent requests")
+    parser.add_argument(
+        "--source",
+        choices=["rest", "graphql"],
+        default="rest",
+        help="which endpoint to collect through; see quirk 7 in src/blockscout.py",
+    )
     parser.add_argument("--no-resume", action="store_true", help="ignore existing cache")
     parser.add_argument("--limit", type=int, help="only collect the first N (for testing)")
     args = parser.parse_args()
@@ -182,7 +192,12 @@ def main() -> None:
         labels = labels[: args.limit]
 
     summary = collect(
-        labels, args.out, args.max_pages, args.workers, resume=not args.no_resume
+        labels,
+        args.out,
+        args.max_pages,
+        args.workers,
+        resume=not args.no_resume,
+        source=args.source,
     )
 
     print("\nCollection summary:")

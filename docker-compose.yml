@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    container_name: eth-illicit-detector
+    ports:
+      - "8501:8501"
+    environment:
+      # Streamlit writes usage stats by default; turn that off for a class demo.
+      - STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+    restart: unless-stopped

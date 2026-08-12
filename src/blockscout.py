@@ -1,9 +1,13 @@
-"""Thin client for the Blockscout Ethereum GraphQL API.
+"""Thin client for the Blockscout Ethereum API.
 
 Endpoint: https://eth.blockscout.com/api/v1/graphql  (free, no API key, no signup)
 
 Everything this project knows about an address is fetched through here. We take
 only *labels* from external lists; every feature is derived from this raw data.
+
+GraphQL is the primary interface and the one the application uses for live
+lookups. Bulk collection uses the REST endpoint for the reason set out in quirk 7
+below; both return identical records, so nothing downstream can tell them apart.
 
 Seven quirks were measured against the live API on 2026-08-13. Each one is handled
 below, and each is commented where it is handled, because they are not in the docs:
@@ -23,14 +27,17 @@ below, and each is commented where it is handled, because they are not in the do
    certainly burned 21000 gas. Since quirk 2 leaves room for only eight fields,
    `gasUsed` is the one we drop, in favour of `gas` (the limit), which is always
    populated and costs the same.
-7. There is an undocumented rate limit of 500 GraphQL requests per roughly
-   fifteen minutes, and it is not announced until you hit it. A short burst runs
-   happily at 4 requests per second, which is misleading: it is quietly spending
-   a budget that then leaves every later request answered with 429 for a quarter
-   of an hour. The server does expose `x-ratelimit-remaining` and
-   `x-ratelimit-reset` (milliseconds until the window resets), so the RateLimiter
-   below reads them and paces the collection to fit, instead of racing ahead and
-   stalling.
+7. There is an undocumented rate limit of **500 GraphQL requests per hour**, and
+   it is not announced until you hit it. A short burst runs happily at 4 requests
+   per second, which is badly misleading: it is quietly spending an hourly budget
+   that then leaves every later request answered with 429. The server does expose
+   `x-ratelimit-remaining` and `x-ratelimit-reset` (milliseconds until the window
+   resets), so the RateLimiter below reads them and paces itself to fit.
+
+   This limit is the single biggest constraint on the project. At 1.4 requests
+   per address, collecting 2,852 addresses through GraphQL takes about eight
+   hours, so the bulk collection uses the REST endpoint instead -- see
+   `fetch_transactions_rest` for what that trades away and why.
 """
 
 from __future__ import annotations
@@ -40,6 +47,7 @@ import json
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 ENDPOINT = "https://eth.blockscout.com/api/v1/graphql"
@@ -66,10 +74,10 @@ class BlockscoutError(RuntimeError):
 class RateLimiter:
     """Keeps the collection inside the server's advertised request budget.
 
-    Quirk 7: the API allows roughly 500 GraphQL requests per fifteen-minute
-    window. Rather than guess at a safe delay, this reads the budget the server
-    reports on every response and spreads the remaining requests evenly over the
-    time left in the window.
+    Quirk 7: the API allows roughly 500 GraphQL requests per hour. Rather than
+    guess at a safe delay, this reads the budget the server reports on every
+    response and spreads the remaining requests evenly over the time left in the
+    window.
 
     The effect is that collection settles into a steady, polite pace instead of
     sprinting into a wall of 429s. It is shared across threads, so the pace is
@@ -235,6 +243,78 @@ def fetch_transactions(address: str, max_pages: int = 5, pause: float = 0.05) ->
             time.sleep(pause)
 
     return transactions
+
+
+def fetch_transactions_rest(address: str, max_pages: int = 2, pause: float = 0.05) -> list[dict]:
+    """Fetch an address's transactions through the REST API instead of GraphQL.
+
+    This exists because of quirk 7. The GraphQL endpoint allows about 500 requests
+    an hour, and it also caps a page at 8 transactions, so collecting a few
+    thousand addresses through it takes the better part of a day. The REST
+    endpoint allows roughly 180 requests per 40 seconds and returns an address's
+    transactions in a single response, which turns an eight-hour collection into
+    a ten-minute one.
+
+    The records it returns are normalised into exactly the shape the GraphQL
+    collector produces, so `src/features.py` cannot tell the two apart and no
+    downstream code needs to change. The one addition is `timestamp`, which REST
+    supplies directly and GraphQL does not.
+    """
+    collected: list[dict] = []
+    params = ""
+
+    for _ in range(max_pages):
+        url = f"{REST_BASE}/api/v2/addresses/{address}/transactions{params}"
+        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+
+        for attempt in range(4):
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    body = json.loads(response.read())
+                break
+            except urllib.error.HTTPError as exc:
+                if exc.code == 429:
+                    time.sleep(20)
+                    continue
+                if exc.code == 404:
+                    return collected
+                if attempt == 3:
+                    raise BlockscoutError(f"REST {exc.code} for {address}")
+                time.sleep(2 * (attempt + 1))
+            except Exception as exc:
+                if attempt == 3:
+                    raise BlockscoutError(f"REST failed for {address}: {exc}")
+                time.sleep(2 * (attempt + 1))
+        else:
+            raise BlockscoutError(f"REST exhausted retries for {address}")
+
+        for item in body.get("items") or []:
+            sender = (item.get("from") or {}).get("hash") or ""
+            receiver = (item.get("to") or {}).get("hash") or ""
+            collected.append(
+                {
+                    "hash": item.get("hash"),
+                    "fromAddressHash": sender.lower(),
+                    "toAddressHash": receiver.lower(),
+                    "value": item.get("value"),
+                    "gas": item.get("gas_limit"),
+                    "gasPrice": item.get("gas_price"),
+                    "blockNumber": item.get("block_number"),
+                    # GraphQL reports "OK"; REST reports "ok". Normalised so the
+                    # failed-transaction feature counts the same thing either way.
+                    "status": "OK" if item.get("status") == "ok" else item.get("status"),
+                    "timestamp": item.get("timestamp"),
+                }
+            )
+
+        next_params = body.get("next_page_params")
+        if not next_params:
+            break
+        params = "?" + urllib.parse.urlencode(next_params)
+        if pause:
+            time.sleep(pause)
+
+    return collected
 
 
 def fetch_address_meta(addresses: list[dict] | list[str]) -> list[dict]:
