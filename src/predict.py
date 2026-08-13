@@ -27,7 +27,7 @@ import joblib
 import pandas as pd
 
 from .blocktime import BlockClock
-from .blockscout import fetch_transactions
+from .blockscout import BlockscoutError, fetch_transactions, fetch_transactions_rest
 from .features import address_features
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -104,7 +104,15 @@ def predict_from_address(address: str, max_pages: int = 8) -> dict:
     bundle = load_model()
     address = address.strip().lower()
 
-    transactions = fetch_transactions(address, max_pages=max_pages)
+    # REST is tried first for live lookups: quirk 7's GraphQL rate limit means
+    # GraphQL can be unavailable exactly when the app is being used, and its
+    # retry loop takes minutes to give up. REST returns records in the same
+    # shape (see `fetch_transactions_rest`), so GraphQL is only a fallback.
+    try:
+        transactions = fetch_transactions_rest(address)
+    except BlockscoutError:
+        transactions = fetch_transactions(address, max_pages=max_pages)
+
     record = {"address": address, "label": 0, "transactions": transactions}
     features = address_features(record, _clock())
 

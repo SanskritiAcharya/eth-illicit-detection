@@ -1,6 +1,6 @@
 # Raw API responses: re-creatable with `python -m src.collect`, and large.
 # See data/README.md for how to regenerate.
-data/raw/transactions.jsonl.gz
+data/raw/transactions*.jsonl.gz
 data/raw/_*.jsonl.gz
 
 .venv/

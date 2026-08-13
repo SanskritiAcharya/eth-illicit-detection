@@ -25,10 +25,23 @@ We take **only labels** from an external source: a community list of reported sc
 addresses. We take **no features** from anyone.
 
 - Every feature is computed by us from raw transaction data.
-- The raw data is fetched by us from the Blockscout **GraphQL** API.
+- The raw data is fetched by us from the Blockscout API, address by address.
 - The address graph is built by us in NetworkX from the transactions we fetched.
 
 There is no pre-cleaned dataset download anywhere in this project.
+
+**A note on GraphQL.** GraphQL is the interface this project is built around: it
+is what we explored the chain with, and what `src/blockscout.py` is mostly about.
+The application scores a live address through REST first, falling back to
+GraphQL if REST fails, because REST is the fast, reliable path and a live demo
+should not be at the mercy of GraphQL's hourly rate limit. It is not what the bulk
+collection runs on either, and the reason is measured rather than preferential — the
+GraphQL endpoint allows **500 requests an hour** and caps a page at 8
+transactions, which puts a 2,852-address collection at about **eight hours**. The
+REST endpoint returns an address's transactions in one response, so the same
+collection takes about **twelve minutes**. Both paths live in
+`src/blockscout.py`, both emit byte-identical records, and `--source graphql`
+still runs the whole collection through GraphQL for anyone willing to wait.
 
 ---
 
@@ -66,11 +79,13 @@ python -m src.train       # engineer features, train three tiers, save the pipel
 
 `python -m src.train` runs end to end and writes `models/model.joblib`.
 
-> **On collection time.** The Blockscout GraphQL API allows roughly **500 requests
-> per fifteen minutes**. This is undocumented and only announced by a `429` once
-> the budget is gone. `src/blockscout.py` reads the rate-limit headers and paces
-> itself, so the run is slow but unattended and resumable — restart it and it
-> picks up where it stopped.
+> **On collection time.** `src/collect.py` defaults to `--source rest` and takes
+> about twelve minutes. `--source graphql` collects the same data through the
+> GraphQL endpoint instead, which takes roughly eight hours because that endpoint
+> allows only **500 requests per hour** — a limit that is undocumented and only
+> announced by a `429` once the budget is gone. Either way the collector reads the
+> rate-limit headers, paces itself, and is resumable: restart it and it picks up
+> where it stopped.
 
 ---
 
@@ -79,7 +94,7 @@ python -m src.train       # engineer features, train three tiers, save the pipel
 | | |
 |---|---|
 | **Labels** | [MyEtherWallet `ethereum-lists`](https://github.com/MyEtherWallet/ethereum-lists) darklist — **MIT licence** |
-| **Everything else** | [Blockscout](https://eth.blockscout.com) public GraphQL API — free, no key, public on-chain data |
+| **Everything else** | [Blockscout](https://eth.blockscout.com) public API — free, no key, public on-chain data |
 | **Size** | 2,852 addresses — 652 illicit, 2,200 licit (22.9% positive) |
 | **Period** | 2017–2018 (blocks 2,912,407 – 6,988,615) |
 
@@ -108,7 +123,7 @@ overlap. If they did not, nothing else in the project would mean anything.
 
 ## Method
 
-**1. Collect.** Fetch each labelled address's transactions through GraphQL and
+**1. Collect.** Fetch each labelled address's transactions from Blockscout and
 freeze them to `data/raw/transactions.jsonl.gz`. Every later stage reads that file,
 so the analysis is reproducible and never re-fetches.
 
@@ -261,9 +276,9 @@ scaler.
 - **Labels are incomplete.** The darklist is community-reported, so an address
   scored LICIT has not been *cleared* — it has simply not been reported. Some
   addresses in the licit sample are very likely undiscovered scams.
-- **64 transactions per address at most.** The rate limit forces a cap, so
-  features describe recent activity rather than a full history. Addresses with
-  long histories are under-described.
+- **100 transactions per address at most.** Collection caps each address at two
+  pages, so features describe recent activity rather than a full history.
+  Addresses with long histories are under-described.
 - **The graph is sparse.** It contains labelled addresses and their immediate
   counterparties only, so the measured graph-feature lift is what a *sparse* graph
   gives, not a ceiling.
