@@ -117,16 +117,25 @@ def _safe_ratio(numerator: float, denominator: float) -> float:
 
 
 def iter_records(path: Path):
-    """Stream the frozen cache one address at a time."""
-    with gzip.open(path, "rt") as handle:
-        for line in handle:
-            line = line.strip()
-            if not line:
-                continue
-            try:
-                yield json.loads(line)
-            except json.JSONDecodeError:
-                continue
+    """Stream the frozen cache one address at a time.
+
+    A cache that is still being written, or was left behind by an interrupted
+    collection, ends mid-member and raises EOFError on the final read. That is a
+    truncated tail, not a corrupt file, so the records already parsed are still
+    good and we stop cleanly instead of losing the whole run.
+    """
+    try:
+        with gzip.open(path, "rt") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    yield json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+    except (OSError, EOFError):
+        return
 
 
 def address_features(record: dict, clock: BlockClock) -> dict:

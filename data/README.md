@@ -14,6 +14,7 @@ below.
 | `raw/transactions.jsonl.gz` | Every address's raw transactions from the GraphQL API | **no** (git-ignored) |
 | `processed/features_raw.csv` | Behavioural features, built by `src/features.py` | yes |
 | `processed/features_full.csv` | Behavioural + graph features | yes |
+| `processed/features_matched.csv` | Activity-matched licit/illicit pairs, built by `src/sensitivity.py` | yes |
 | `processed/edges.csv` | Address-to-address edge list built from the transactions | yes |
 
 ## Sources and licences
@@ -41,11 +42,13 @@ python -m src.collect    # rebuild transactions.jsonl.gz
 `src/collect.py` is resumable: it appends to the cache and skips addresses that
 already succeeded, so an interrupted run can simply be restarted.
 
-Expect the collection step to take a while. The API allows roughly **500 GraphQL
-requests per fifteen minutes**, which is not documented and is only revealed by a
-`429` once the budget is gone. The client reads the `x-ratelimit-remaining` and
-`x-ratelimit-reset` headers and paces itself to fit, so the run is slow but
-unattended.
+`src/collect.py` defaults to `--source rest` and takes about twelve minutes.
+Passing `--source graphql` collects exactly the same records through the GraphQL
+endpoint, which takes roughly eight hours: that endpoint allows only **500
+requests per hour** — undocumented, and only revealed by a `429` once the budget
+is gone — and caps a page at 8 transactions. The client reads the
+`x-ratelimit-remaining` and `x-ratelimit-reset` headers and paces itself to fit,
+so either run is unattended.
 
 ## Why the licit addresses are sampled the way they are
 
