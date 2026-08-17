@@ -7,6 +7,8 @@ A supervised binary classifier that scores an Ethereum address for signs of
 phishing or scam activity, and a Streamlit application that puts it in front of a
 user.
 
+**Live demo:** <https://eth-illicit-detection.streamlit.app/>
+
 The question the project is built around:
 
 > **Can an address's network of connections reveal fraud that its own features cannot?**
@@ -181,6 +183,9 @@ reported together, as measured.
 ```bash
 streamlit run app/app.py
 ```
+
+A deployed instance runs at <https://eth-illicit-detection.streamlit.app/>, so the
+app can be tried without installing anything.
 
 Three tabs:
 
