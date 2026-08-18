@@ -227,6 +227,7 @@ src/
   predict.py              scoring interface used by the app
 models/model.joblib       the full pipeline: scaler + classifier
 app/app.py                Streamlit interface
+.streamlit/config.toml    app theme, so every instance looks the same
 reports/                  metrics table and figures
 tests/                    unit tests
 ```

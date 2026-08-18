@@ -1,0 +1,47 @@
+# Visual theme for the Streamlit app.
+#
+# It lives in the repo so that a local run, the Docker image and the deployed
+# instance all look identical. Colours are split into light/dark blocks rather
+# than pinned with `base`, so the app follows whatever the reader's browser or
+# the Streamlit Cloud toolbar asks for.
+
+[theme]
+font = "sans-serif"
+headingFont = "sans-serif"
+baseFontSize = 15
+baseRadius = "small"
+buttonRadius = "small"
+headingFontSizes = ["1.6rem", "1.25rem", "1.05rem", "0.95rem", "0.85rem", "0.8rem"]
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+metricValueFontSize = "1.5rem"
+metricValueFontWeight = 600
+showWidgetBorder = true
+showSidebarBorder = true
+
+[theme.light]
+primaryColor = "#1F52C8"
+backgroundColor = "#FFFFFF"
+secondaryBackgroundColor = "#F5F6F8"
+textColor = "#14171C"
+linkColor = "#1F52C8"
+borderColor = "#E3E6EB"
+dataframeBorderColor = "#E3E6EB"
+dataframeHeaderBackgroundColor = "#F5F6F8"
+
+[theme.light.sidebar]
+backgroundColor = "#FAFBFC"
+secondaryBackgroundColor = "#F0F2F5"
+
+[theme.dark]
+primaryColor = "#7EA0F7"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#181C24"
+textColor = "#E5E8EE"
+linkColor = "#7EA0F7"
+borderColor = "#282D38"
+dataframeBorderColor = "#282D38"
+dataframeHeaderBackgroundColor = "#181C24"
+
+[theme.dark.sidebar]
+backgroundColor = "#0B0E13"
+secondaryBackgroundColor = "#181C24"
