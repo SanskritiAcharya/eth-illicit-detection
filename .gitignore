@@ -9,3 +9,7 @@ __pycache__/
 .ipynb_checkpoints/
 .DS_Store
 .pytest_cache/
+
+# Local secrets. Never commit: this repository is public.
+.env
+.env.*
