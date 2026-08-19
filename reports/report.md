@@ -496,22 +496,6 @@ rate.
 
 ---
 
-## 8. Use of AI assistance
-
-An AI assistant (Claude) was used throughout this project as a reference and pair
-programmer. Specifically: exploring the Blockscout GraphQL schema and diagnosing
-its undocumented behaviour (the seven quirks in section 2), drafting and
-reviewing the code in `src/`, and structuring the notebooks and written
-documentation.
-
-The modelling decisions are ours and we can explain each of them: the choice of
-Track A, F1 on the illicit class as the metric and why accuracy is unusable, the
-temporal split, the era-matched sampling strategy that keeps block number from
-becoming a shortcut, and the leakage control on `neighbour_risk_ratio`. Every
-line of code in this repository can be explained by the authors.
-
----
-
 ## References
 
 Weber, M., Domeniconi, G., Chen, J., Weidele, D. K. I., Bellei, C., Robinson, T.,

@@ -312,18 +312,6 @@ scaler.
 
 ---
 
-## Use of AI assistance
-
-An AI assistant (Claude) was used during this project as a reference and pair
-programmer: for exploring the Blockscout GraphQL schema and diagnosing its
-undocumented behaviour, drafting and reviewing code in `src/`, and structuring the
-notebooks and this README.
-
-All modelling decisions — the choice of track, the metric and its justification,
-the temporal split, the era-matched sampling strategy, and the leakage controls —
-were made and are understood by the authors, who can explain every line of the
-code and every decision behind it.
-
 ## Licence and attribution
 
 Project code is available for academic use. Label data is from MyEtherWallet's
