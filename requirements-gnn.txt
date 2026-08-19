@@ -1,0 +1,5 @@
+# Extra dependencies for the tier-4 GNN (python -m src.gnn) only.
+# Kept out of requirements.txt so the deployed Streamlit app never installs
+# torch: the app serves the tier-3 pipeline and only reads the GNN's metrics.
+torch==2.13.0
+torch_geometric==2.8.0.post1

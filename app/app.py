@@ -467,8 +467,10 @@ with model_tab:
         )
     else:
         st.caption(
-            "Three tiers trained on the same temporal split. The first is the trivial "
-            "baseline every other model has to beat."
+            "Four tiers trained on the same temporal split. The first is the trivial "
+            "baseline every other model has to beat; the last is a graph neural "
+            "network (GraphSAGE) that learns network context from the raw address "
+            "graph instead of hand-crafted graph features."
         )
         scores = metrics_frame[["model", "accuracy", "precision", "recall", "f1", "pr_auc"]].rename(
             columns={

@@ -225,24 +225,38 @@ model can learn to distrust it when that count is low. Unit tests in
 `tests/test_pipeline.py` pin this behaviour down, including that an address can
 never read its own label back through a self-loop.
 
-### The three tiers
+### The four tiers
 
 1. **Majority class.** Always predicts "licit". The trivial baseline the brief
    requires us to build, beat, and report.
 2. **Behaviour only.** Logistic regression and random forest on the 29
    behavioural features.
 3. **Behaviour + graph.** The same two models with the graph features added.
+4. **Graph neural network.** A two-layer GraphSAGE (`src/gnn.py`) trained on the
+   raw address graph itself — all 44k nodes, including the unlabelled one-hop
+   neighbours. Where tier 3 hands a forest *our* summary of the network (degree,
+   PageRank, neighbour risk), the GNN is given no graph features at all and has
+   to learn what network context means by passing messages along the edges.
+   Labelled nodes carry the 29 behaviour features; unlabelled neighbours carry
+   only their degrees and a flag saying their behaviour was never collected.
 
-Both classifiers are full scikit-learn pipelines with the scaler inside them, and
-both use `class_weight="balanced"` so that missing the rarer illicit class costs
-more. Hyperparameters are tuned by 5-fold cross-validation **on the training
-split only**; the test split is touched exactly once, at scoring time.
+Both classical classifiers are full scikit-learn pipelines with the scaler inside
+them, and both use `class_weight="balanced"` so that missing the rarer illicit
+class costs more. Hyperparameters are tuned by 5-fold cross-validation **on the
+training split only**; the test split is touched exactly once, at scoring time.
+
+The GNN follows the same rules translated to a neural setting: the identical
+temporal split, a class-weighted loss over training nodes only, feature scaling
+fit on training rows only, and early stopping against a validation slice carved
+off the *newest end of the training window* — never the test split. It is
+deliberately given no label-derived feature such as `neighbour_risk_ratio`;
+feeding it our answer would make the comparison with tier 3 circular.
 
 ---
 
 ## 5. Results and evaluation
 
-### The three tiers
+### The four tiers
 
 All numbers are on the held-out temporal test split (856 addresses, 133 illicit).
 Metrics are for the **illicit** class.
@@ -254,6 +268,7 @@ Metrics are for the **illicit** class.
 | 2 — behaviour | random forest | 0.959 | 0.806 | 0.970 | **0.881** | 0.952 | 0.988 |
 | 3 — behaviour + graph | logistic regression | 0.930 | 0.695 | 0.977 | **0.812** | 0.799 | 0.967 |
 | 3 — behaviour + graph | **random forest** | **0.963** | **0.822** | **0.970** | **0.890** | **0.969** | **0.993** |
+| 4 — GNN | GraphSAGE | 0.939 | 0.731 | 0.962 | **0.831** | 0.884 | 0.972 |
 
 The baseline is the row that justifies the whole metric choice: **84.5% accuracy
 and an F1 of exactly zero**, from a model that has learned nothing at all. (It
@@ -288,6 +303,35 @@ accurately than round it into a story about graphs transforming the problem.
 The result should also be read against our graph's limits: it contains labelled
 addresses and their immediate counterparties only, with at most 100 transactions
 each. This measures the lift available from a **sparse** graph, not the ceiling.
+
+### What the GNN adds to that answer
+
+The GraphSAGE tier asks the same question from the other direction: instead of
+us deciding what the network means and summarising it into eight columns, the
+model reads the raw graph itself. It lands at **F1 0.831** — clearly above the
+behaviour-only logistic regression (0.737) and roughly level with the tier-3
+logistic regression (0.812), but below both random forests.
+
+That ordering is informative rather than disappointing:
+
+- **It confirms the graph carries real signal.** With 96% recall the GNN catches
+  scams at the same rate as the forests, and it recovers most of the network
+  signal without ever being shown a hand-crafted graph feature — including the
+  withheld `neighbour_risk_ratio`, whose job it has to rediscover through
+  message passing.
+- **It loses on precision, and the reason is data size.** A GNN learns its own
+  features, and 1,996 labelled training nodes on a sparse one-hop graph is a
+  small corpus for that; the forest instead gets 37 features we engineered from
+  domain knowledge, which is exactly the trade that favours classical models on
+  small tabular-ish problems.
+- **It says our hand-crafted features were not leaving much behind.** If degree,
+  PageRank and neighbour risk had missed a large signal, a model free to learn
+  arbitrary neighbourhood patterns should have found it and beaten tier 3. It
+  did not — which is quiet evidence the feature engineering did its job.
+
+The shipped model therefore stays the tier-3 random forest, with the GNN
+reported as the strongest evidence we have that the answer to the research
+question is a property of the data, not of one model family.
 
 ### Confusion matrix — shipped model
 

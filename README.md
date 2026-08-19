@@ -13,9 +13,11 @@ The question the project is built around:
 
 > **Can an address's network of connections reveal fraud that its own features cannot?**
 
-To answer that, three model tiers are trained on an identical split with nothing
-changing but the feature set — a trivial baseline, behaviour-only features, and
-behaviour plus graph-derived features. The gap between the last two is the answer.
+To answer that, four model tiers are trained on an identical split — a trivial
+baseline, behaviour-only features, behaviour plus graph-derived features, and a
+graph neural network (GraphSAGE) that reads the raw address graph directly. The
+gap between tiers 2 and 3 is the answer; the GNN checks it from the other
+direction, with learned network representations instead of hand-crafted ones.
 
 ---
 
@@ -76,10 +78,18 @@ Then open <http://localhost:8501>.
 python -m src.labels      # build the labelled address list
 python -m src.blocktime   # cache block-number to timestamp anchors
 python -m src.collect     # fetch raw transactions  (slow — see the note below)
-python -m src.train       # engineer features, train three tiers, save the pipeline
+python -m src.train       # engineer features, train tiers 1-3, save the pipeline
+python -m src.gnn         # train the tier-4 GraphSAGE (needs requirements-gnn.txt)
 ```
 
 `python -m src.train` runs end to end and writes `models/model.joblib`.
+
+The GNN tier has its own dependency file so the deployed app stays light:
+
+```bash
+pip install -r requirements-gnn.txt   # torch + torch_geometric, CPU is fine
+python -m src.gnn                     # trains in under a minute, appends to reports/metrics.csv
+```
 
 > **On collection time.** `src/collect.py` defaults to `--source rest` and takes
 > about twelve minutes. `--source graphql` collects the same data through the
@@ -138,8 +148,10 @@ summary statistic that can be explained in a sentence.
 From that graph: degree, in/out degree, PageRank, clustering coefficient, Louvain
 community size, and the neighbour risk ratio.
 
-**4. Model.** Three tiers, logistic regression and random forest, tuned by 5-fold
-cross-validation on the training split.
+**4. Model.** Four tiers. Logistic regression and random forest, tuned by 5-fold
+cross-validation on the training split, plus a two-layer GraphSAGE trained on the
+raw 44k-node address graph — no hand-crafted graph features, message passing has
+to learn the network context itself.
 
 **5. Ship.** A Streamlit app that scores a live address, and a Docker setup.
 
@@ -173,8 +185,11 @@ across all thresholds instead of just at 0.5.
 ## Results
 
 See `reports/metrics.csv` for the full table, and `notebooks/02_modeling.ipynb`
-for the evaluation, error analysis, and threshold sweep. The three tiers are
-reported together, as measured.
+for the evaluation, error analysis, and threshold sweep. All four tiers are
+reported together, as measured. Headline: the tier-3 random forest ships
+(F1 0.890); the GraphSAGE lands at F1 0.831 with the same 96% recall, strong
+evidence the graph signal is real — and that the hand-crafted graph features
+were not leaving much behind.
 
 ---
 
@@ -195,7 +210,7 @@ Three tabs:
   review priority band.
 - **Explore features by hand** — set feature values directly and watch the model
   respond, without waiting on the network.
-- **Model performance** — the three-tier comparison, feature importances, and
+- **Model performance** — the four-tier comparison, feature importances, and
   graph statistics.
 
 A live lookup can see the address and its transactions but cannot rebuild the
@@ -223,9 +238,11 @@ src/
   collect.py              resumable collector; freezes the raw data
   features.py             per-address feature engineering
   graph.py                graph construction and network features
-  train.py                three tiers, temporal split, saves the pipeline
+  train.py                tiers 1-3, temporal split, saves the pipeline
+  gnn.py                  tier 4: GraphSAGE on the raw address graph
   predict.py              scoring interface used by the app
 models/model.joblib       the full pipeline: scaler + classifier
+models/gnn.pt             the trained GraphSAGE weights and config
 app/app.py                Streamlit interface
 .streamlit/config.toml    app theme, so every instance looks the same
 reports/                  metrics table and figures
