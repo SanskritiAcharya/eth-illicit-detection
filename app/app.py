@@ -160,10 +160,23 @@ def get_model():
 
 
 @st.cache_data
+def _read_metrics(path: str, stamp: tuple[int, int]) -> pd.DataFrame:
+    """Read the metrics table, cached against the file's own stamp.
+
+    Caching on no arguments at all looks harmless here, but the key Streamlit
+    derives is the function's source, not the file's contents: after a retrain
+    added a tier, a redeployed app went on serving the table it had cached
+    before, because the reader itself had not changed. Passing the stamp makes
+    a rewritten metrics.csv a different call.
+    """
+    return pd.read_csv(path)
+
+
 def get_metrics() -> pd.DataFrame | None:
-    if METRICS_PATH.exists():
-        return pd.read_csv(METRICS_PATH)
-    return None
+    if not METRICS_PATH.exists():
+        return None
+    stat = METRICS_PATH.stat()
+    return _read_metrics(str(METRICS_PATH), (stat.st_mtime_ns, stat.st_size))
 
 
 @st.cache_data
