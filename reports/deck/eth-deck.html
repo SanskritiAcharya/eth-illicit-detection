@@ -1,0 +1,665 @@
+<title>ETH Illicit Detection</title>
+<meta charset="utf-8">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=STIX+Two+Text:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+  :root{
+    color-scheme:light;
+    --paper:#FAFAF7; --ink:#1B1B18; --muted:#6B6A62; --hair:#DCDAD2; --hair2:#EAE8E1;
+    --blue:#2E4FA8; --blue-lt:#93A9DC; --crimson:#B3382C; --teal:#2F6F62;
+    --serif:"STIX Two Text", Georgia, "Times New Roman", serif;
+    --mono:"IBM Plex Mono", "SF Mono", Menlo, monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%}
+  body{background:var(--paper);color:var(--ink);font-family:var(--serif);overflow:hidden}
+
+  #stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;
+    transform:translate(-50%,-50%) scale(1);transform-origin:center}
+  .slide{position:absolute;inset:0;background:var(--paper);
+    padding:78px 96px 72px;display:none;flex-direction:column}
+  .slide.on{display:flex}
+  @media (prefers-reduced-motion: no-preference){
+    .slide.on{animation:fade .28s ease}
+    @keyframes fade{from{opacity:0}to{opacity:1}}
+  }
+
+  /* ---- slide grammar: eyebrow, headline, one optional dek line ---- */
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.2em;color:var(--muted);text-transform:uppercase}
+  .eyebrow b{color:var(--crimson);font-weight:500}
+  h2{font-size:46px;line-height:1.08;font-weight:600;letter-spacing:-.016em;
+    margin-top:16px;max-width:17em;text-wrap:balance}
+  .dek{font-style:italic;font-size:20px;line-height:1.45;color:var(--muted);
+    margin-top:16px;max-width:33em}
+  .body{flex:1;display:flex;flex-direction:column;justify-content:center;min-height:0;margin-top:34px}
+  .note{font-family:var(--mono);font-size:12px;letter-spacing:.05em;color:var(--muted);line-height:1.8}
+  .note b{color:var(--ink);font-weight:500}
+  em.term{font-style:italic}
+  .mono-inline{font-family:var(--mono);font-size:.82em;letter-spacing:0}
+  .accent-b{color:var(--blue)} .accent-c{color:var(--crimson)} .accent-t{color:var(--teal)}
+
+  /* ---- title ---- */
+  .t-wrap{flex:1;display:flex;align-items:center;gap:72px}
+  .t-left{flex:1.2}
+  .t-eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.2em;color:var(--crimson);margin-bottom:30px}
+  h1{font-size:56px;line-height:1.1;font-weight:600;letter-spacing:-.014em;text-wrap:balance;max-width:14em}
+  .t-q{margin-top:40px;padding:4px 0 4px 26px;border-left:2px solid var(--blue);max-width:31em}
+  .t-q .qtext{font-style:italic;font-size:22px;line-height:1.45;color:var(--blue)}
+  .t-authors{margin-top:48px;font-size:20px}
+  .t-authors .amp{color:var(--muted);font-style:italic}
+  .t-meta{margin-top:10px;font-family:var(--mono);font-size:12px;color:var(--muted);letter-spacing:.05em}
+  .t-right{flex:.8;display:flex;justify-content:center}
+
+  /* ---- stat bands ---- */
+  .stats{display:flex;border-top:1px solid var(--ink);border-bottom:1px solid var(--hair);margin-top:8px}
+  .stat{flex:1;padding:20px 24px 22px;border-left:1px solid var(--hair)}
+  .stat:first-child{border-left:none;padding-left:0}
+  .stat .v{font-size:38px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.015em}
+  .stat .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.13em;color:var(--muted);
+    margin-top:8px;text-transform:uppercase;line-height:1.6}
+
+  /* big three-up numbers */
+  .trio{display:flex;gap:0;margin-top:10px}
+  .trio .c{flex:1;padding:0 30px}
+  .trio .c:first-child{padding-left:0}
+  .trio .c + .c{border-left:1px solid var(--hair)}
+  .trio .v{font-size:62px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em;line-height:1}
+  .trio .k{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--muted);
+    margin-top:14px;text-transform:uppercase;line-height:1.7}
+
+  /* two-column figure layouts */
+  .cols{display:flex;gap:64px;align-items:center;min-height:0}
+  .col{flex:1;min-width:0}
+  .fig-wide{width:100%;display:flex;flex-direction:column;gap:18px;align-items:center}
+  .figcap{font-family:var(--mono);font-size:11.5px;color:var(--muted);letter-spacing:.02em;
+    line-height:1.75;max-width:44em}
+  .figcap b{color:var(--ink);font-weight:600}
+
+  /* ---- metric slide ---- */
+  .contrast{display:flex;border-top:1px solid var(--ink);border-bottom:1px solid var(--hair)}
+  .contrast .c{flex:1;padding:26px 30px 28px}
+  .contrast .c + .c{border-left:1px solid var(--hair)}
+  .contrast .v{font-size:56px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .contrast .k{font-family:var(--mono);font-size:11px;letter-spacing:.11em;color:var(--muted);
+    margin-top:12px;text-transform:uppercase;line-height:1.7}
+  .formula{font-size:26px;font-style:italic;margin-top:32px;color:var(--muted)}
+  .frac{display:inline-block;text-align:center;vertical-align:middle;margin:0 6px}
+  .frac .num{display:block;border-bottom:1.5px solid var(--muted);padding:0 10px 2px}
+  .frac .den{display:block;padding-top:2px}
+
+  /* ---- decisions table ---- */
+  .dec{width:100%;border-collapse:collapse;font-size:17px;line-height:1.4}
+  .dec td{padding:14px 14px 14px 0;border-bottom:1px solid var(--hair2);vertical-align:top}
+  .dec tr:first-child td{border-top:1px solid var(--ink)}
+  .dec td:first-child{font-family:var(--mono);font-size:13px;white-space:nowrap;padding-right:24px}
+  .dec td:last-child{color:var(--muted);font-style:italic}
+
+  /* ---- tiers ---- */
+  .tier{display:flex;gap:20px;align-items:baseline;padding:19px 0;border-bottom:1px solid var(--hair2)}
+  .tier:first-child{border-top:1px solid var(--ink)}
+  .tier .tn{font-family:var(--mono);font-size:12px;color:var(--crimson);white-space:nowrap;letter-spacing:.08em}
+  .tier .tt{font-size:21px}
+  .tier .tt b{font-weight:600}
+  .tier .tt span{color:var(--muted);font-style:italic;font-size:18.5px}
+
+  /* ---- guard / answer callouts ---- */
+  .callout{border-left:2px solid var(--crimson);padding:6px 0 6px 28px;max-width:38em}
+  .callout.blue{border-color:var(--blue)}
+  .callout p{font-size:21px;line-height:1.5}
+  .callout code{font-family:var(--mono);font-size:.8em}
+
+  /* ---- results ---- */
+  .r-cols{display:flex;gap:60px;align-items:center;min-height:0}
+  .r-chart{flex:1.5;min-width:0}
+  .r-side{flex:.72}
+  .kstat{padding:20px 0 21px;border-bottom:1px solid var(--hair)}
+  .kstat:first-child{border-top:1px solid var(--ink)}
+  .kstat .v{font-size:40px;font-weight:600;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .kstat .v sub{font-size:.5em}
+  .kstat .v .dim{color:var(--muted);font-size:.55em;font-weight:400}
+  .kstat .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;color:var(--muted);
+    text-transform:uppercase;margin-top:8px;line-height:1.7}
+  .legend{display:flex;gap:26px;font-family:var(--mono);font-size:11.5px;color:var(--muted);
+    letter-spacing:.04em;align-items:center;margin-bottom:14px}
+  .sw{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:8px;vertical-align:-1px}
+
+  /* ---- pipeline ---- */
+  .pipe{display:flex;align-items:stretch;margin:0 0 6px}
+  .pnode{flex:1;border:1px solid var(--ink);padding:16px 8px 14px;text-align:center;background:var(--paper)}
+  .pnode .pn{font-family:var(--mono);font-size:13px;font-weight:600}
+  .pnode .pk{font-family:var(--mono);font-size:9.5px;color:var(--muted);letter-spacing:.06em;
+    margin-top:7px;text-transform:uppercase;line-height:1.6}
+  .pnode.data{border-style:dashed;border-color:var(--muted)}
+  .pnode.ship{border-width:2px;border-color:var(--blue)}
+  .parrow{display:flex;align-items:center;padding:0 8px;font-family:var(--mono);color:var(--muted);font-size:13px}
+
+  /* ---- app ---- */
+  .tab{display:flex;gap:20px;align-items:baseline;padding:18px 0;border-bottom:1px solid var(--hair2)}
+  .tab:first-child{border-top:1px solid var(--ink)}
+  .tab .tno{font-family:var(--mono);font-size:12px;color:var(--blue);white-space:nowrap;letter-spacing:.08em}
+  .tab .tb{font-size:20px}
+  .tab .tb b{font-weight:600}
+  .tab .tb span{color:var(--muted);font-style:italic;font-size:18px}
+  .demo-url{border:1px solid var(--ink);padding:28px 24px;text-align:center}
+  .demo-url .u{font-family:var(--mono);font-size:15.5px;font-weight:600;letter-spacing:.02em;white-space:nowrap}
+  .demo-url .k{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--muted);
+    margin-top:10px;text-transform:uppercase}
+
+  /* ---- who ---- */
+  .who .name{font-size:21px;font-weight:600;border-bottom:1px solid var(--ink);
+    padding-bottom:8px;margin-bottom:14px}
+  .who ul{list-style:none}
+  .who li{font-size:17.5px;line-height:1.5;padding:6px 0 6px 18px;position:relative;color:var(--muted)}
+  .who li::before{content:"\00B7";position:absolute;left:2px;color:var(--crimson)}
+  .who li code{font-family:var(--mono);font-size:.8em}
+
+  /* ---- closing ---- */
+  .closing{flex:1;display:flex;flex-direction:column;justify-content:center}
+  .closing .q{font-family:var(--mono);font-size:11.5px;letter-spacing:.18em;color:var(--muted);
+    text-transform:uppercase;margin-bottom:30px;max-width:none}
+  .closing .a{font-size:46px;line-height:1.24;font-weight:600;letter-spacing:-.015em;
+    text-wrap:balance;max-width:19em}
+  .closing .a em{font-style:italic;color:var(--blue);font-weight:600}
+
+  /* ---- nav ---- */
+  #hud{position:fixed;right:20px;bottom:16px;display:flex;gap:8px;z-index:9;opacity:.42}
+  #hud:hover{opacity:1}
+  #hud button{font-family:var(--mono);font-size:13px;background:none;border:1px solid var(--hair);
+    color:var(--ink);width:28px;height:24px;cursor:pointer;border-radius:2px}
+  #hud button:hover{border-color:var(--ink)}
+  #hud button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+  svg text{font-variant-numeric:tabular-nums}
+
+  @media print{
+    @page{size:1280px 720px;margin:0}
+    #hud{display:none!important}
+    html,body{height:auto!important;overflow:visible!important}
+    #stage{position:static!important;left:auto!important;top:auto!important;
+      transform:none!important;width:1280px;height:auto}
+    .slide{display:flex!important;position:relative!important;inset:auto!important;
+      width:1280px;height:720px;page-break-after:always;break-after:page;animation:none!important}
+    .slide:last-child{page-break-after:auto;break-after:auto}
+  }
+</style>
+
+<div id="stage">
+
+<!-- ============ 1 · TITLE ============ -->
+<section class="slide on">
+  <div class="t-wrap">
+    <div class="t-left">
+      <div class="t-eyebrow">DCS 404 &#183; FINAL PROJECT</div>
+      <h1>Detecting Illicit Ethereum Transactions with Graph&#8209;Derived Features</h1>
+      <div class="t-q">
+        <div class="qtext">Can an address&rsquo;s network of connections reveal fraud that its own features cannot?</div>
+      </div>
+      <div class="t-authors">Sanskriti Acharya <span class="amp">&amp;</span> Sweta Sharma</div>
+      <div class="t-meta">eth-illicit-detection.streamlit.app</div>
+    </div>
+    <div class="t-right">
+      <svg width="380" height="350" viewBox="0 0 360 330" role="img" aria-label="A small transaction graph with one flagged address">
+        <g stroke="#DCDAD2" stroke-width="1.2">
+          <line x1="180" y1="160" x2="82"  y2="84"/><line x1="180" y1="160" x2="262" y2="70"/>
+          <line x1="180" y1="160" x2="300" y2="176"/><line x1="180" y1="160" x2="236" y2="268"/>
+          <line x1="180" y1="160" x2="96"  y2="238"/><line x1="82"  y1="84"  x2="30"  y2="140"/>
+          <line x1="82"  y1="84"  x2="140" y2="30"/><line x1="262" y1="70"  x2="206" y2="24"/>
+          <line x1="262" y1="70"  x2="330" y2="102"/><line x1="300" y1="176" x2="330" y2="102"/>
+          <line x1="96"  y1="238" x2="42"  y2="288"/><line x1="96"  y1="238" x2="30"  y2="140"/>
+          <line x1="236" y1="268" x2="300" y2="300"/>
+        </g>
+        <g fill="#FAFAF7" stroke="#6B6A62" stroke-width="1.4">
+          <circle cx="82"  cy="84"  r="9"/><circle cx="262" cy="70"  r="9"/>
+          <circle cx="300" cy="176" r="9"/><circle cx="236" cy="268" r="9"/>
+          <circle cx="96"  cy="238" r="9"/><circle cx="30"  cy="140" r="6"/>
+          <circle cx="140" cy="30"  r="6"/><circle cx="206" cy="24"  r="6"/>
+          <circle cx="330" cy="102" r="6"/><circle cx="42"  cy="288" r="6"/>
+          <circle cx="300" cy="300" r="6"/>
+        </g>
+        <circle cx="180" cy="160" r="13" fill="#B3382C"/>
+        <circle cx="180" cy="160" r="20" fill="none" stroke="#B3382C" stroke-width="1" stroke-dasharray="3 3"/>
+        <text x="180" y="207" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#B3382C" letter-spacing="1">0x3f4e&#8230;a71c</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 2 · PROBLEM ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;1</b> &nbsp;Problem</div>
+  <h2>Is this address a scam?</h2>
+  <p class="dek">Every Ethereum transfer is public and permanent &mdash; and there are over a million a day. No investigator can read them all.</p>
+  <div class="body">
+    <div class="stats">
+      <div class="stat"><div class="v">Track A</div><div class="k">supervised &#183; binary</div></div>
+      <div class="stat"><div class="v">1 address</div><div class="k">in &#183; phishing or scam?</div></div>
+      <div class="stat"><div class="v accent-b">a probability</div><div class="k">out &#183; never a verdict</div></div>
+    </div>
+    <p class="dek" style="margin-top:34px;max-width:40em">Built for an analyst triaging addresses, so the output is a <em class="term">review priority</em>. The deliverable is a short, ranked list.</p>
+  </div>
+</section>
+
+<!-- ============ 3 · METRIC ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;1</b> &nbsp;Metric</div>
+  <h2>Accuracy is unusable here</h2>
+  <div class="body">
+    <div class="contrast">
+      <div class="c"><div class="v accent-c">0.845</div><div class="k">accuracy of a model that always answers &ldquo;licit&rdquo;</div></div>
+      <div class="c"><div class="v accent-c"><i>F</i><sub style="font-size:.5em">1</sub> = 0.000</div><div class="k">the same model, on the metric that matters</div></div>
+    </div>
+    <div class="formula"><i>F</i><sub style="font-size:.55em">1</sub> = <span class="frac"><span class="num">2 <i>P R</i></span><span class="den"><i>P</i> + <i>R</i></span></span> &nbsp;on the illicit class, reported with PR&#8209;AUC</div>
+    <p class="dek" style="margin-top:30px;max-width:40em">A missed scam lets fraud continue; a false alarm costs an analyst minutes. Recall matters more &mdash; but <i>F</i><sub>1</sub> only rises when both are respectable.</p>
+  </div>
+</section>
+
+<!-- ============ 4 · DATASET ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;2</b> &nbsp;Dataset</div>
+  <h2>Only the labels are borrowed</h2>
+  <div class="body">
+    <div class="stats">
+      <div class="stat"><div class="v">2,852</div><div class="k">labelled addresses</div></div>
+      <div class="stat"><div class="v accent-c">652</div><div class="k">illicit &#183; 22.9%</div></div>
+      <div class="stat"><div class="v">2017&ndash;18</div><div class="k">both classes, same era</div></div>
+      <div class="stat"><div class="v accent-b">100%</div><div class="k">features computed by us</div></div>
+    </div>
+    <div class="cols" style="gap:72px;margin-top:38px">
+      <div class="col">
+        <p class="dek" style="margin-top:0"><b style="color:var(--ink);font-style:normal">Labels</b> &mdash; the MyEtherWallet darklist of reported scam addresses, deduplicated 715 &#8594; 652 wallets.</p>
+      </div>
+      <div class="col">
+        <p class="dek" style="margin-top:0"><b style="color:var(--ink);font-style:normal">Everything else</b> &mdash; raw transactions fetched address-by-address from Blockscout. No pre-cleaned download exists.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 5 · THE TRAP ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;2</b> &nbsp;Sampling</div>
+  <h2>The shortcut we had to close</h2>
+  <p class="dek">97% of the darklist dates to 2017&ndash;18. Sample licit addresses from recent blocks and <span class="mono-inline">block_number</span> alone separates the classes perfectly.</p>
+  <div class="body">
+    <div class="fig-wide">
+      <svg width="820" viewBox="0 0 560 152" role="img" aria-label="Naive versus era-matched sampling of the licit class">
+        <text x="0" y="12" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1.5" fill="#6B6A62">NAIVE: LICIT FROM RECENT BLOCKS</text>
+        <line x1="0" y1="90" x2="264" y2="90" stroke="#1B1B18" stroke-width="1"/>
+        <path d="M 8,90 C 40,90 46,32 78,32 C 110,32 116,90 148,90 Z" fill="#B3382C" fill-opacity=".16" stroke="#B3382C" stroke-width="1.8"><title>illicit &mdash; 2017&ndash;18 blocks</title></path>
+        <path d="M 160,90 C 186,90 190,38 214,38 C 238,38 242,90 262,90 Z" fill="#2E4FA8" fill-opacity=".14" stroke="#2E4FA8" stroke-width="1.8"><title>licit &mdash; recent blocks</title></path>
+        <text x="78" y="106" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#B3382C">illicit</text>
+        <text x="212" y="106" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#2E4FA8">licit</text>
+        <text x="0" y="130" font-family="STIX Two Text, serif" font-style="italic" font-size="14" fill="#B3382C">separable by block number alone &#10007;</text>
+        <text x="316" y="12" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1.5" fill="#6B6A62">ERA-MATCHED (OURS)</text>
+        <line x1="316" y1="90" x2="560" y2="90" stroke="#1B1B18" stroke-width="1"/>
+        <path d="M 324,90 C 356,90 362,32 394,32 C 426,32 432,90 464,90 Z" fill="#B3382C" fill-opacity=".16" stroke="#B3382C" stroke-width="1.8"><title>illicit &mdash; 2017&ndash;18 blocks</title></path>
+        <path d="M 352,90 C 384,90 390,36 422,36 C 454,36 460,90 492,90 Z" fill="#2E4FA8" fill-opacity=".14" stroke="#2E4FA8" stroke-width="1.8"><title>licit &mdash; sampled from the same window</title></path>
+        <text x="316" y="130" font-family="STIX Two Text, serif" font-style="italic" font-size="14" fill="#1B1B18">distributions overlap &mdash; shortcut closed &#10003;</text>
+        <text x="280" y="150" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="10" fill="#6B6A62" letter-spacing="1">block number &#8594;</text>
+      </svg>
+      <div class="figcap" style="text-align:center"><b>Fig. 1</b> &mdash; same logic twice more: contracts excluded from both classes, absolute block numbers excluded from features.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 6 · FEATURES & PREPROCESSING ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;3</b> &nbsp;EDA &amp; Preprocessing</div>
+  <h2>29 behavioural features, plus 7 from the graph</h2>
+  <div class="body">
+    <div class="cols" style="gap:56px">
+      <div class="col" style="flex:1.05">
+        <svg width="100%" viewBox="0 0 560 168" role="img" aria-label="The collect-and-sweep pattern and burstiness">
+          <text x="0" y="12" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1" fill="#6B6A62">value_concentration &#8776; 1</text>
+          <g stroke="#6B6A62" stroke-width="1.1">
+            <line x1="30" y1="34" x2="128" y2="66"/><line x1="24" y1="62" x2="128" y2="70"/>
+            <line x1="26" y1="90" x2="128" y2="76"/><line x1="38" y1="112" x2="128" y2="80"/>
+          </g>
+          <g fill="#FAFAF7" stroke="#6B6A62" stroke-width="1.3">
+            <circle cx="26" cy="32" r="6"/><circle cx="20" cy="61" r="6"/>
+            <circle cx="22" cy="91" r="6"/><circle cx="34" cy="114" r="6"/>
+          </g>
+          <circle cx="140" cy="73" r="11" fill="#B3382C"/>
+          <line x1="153" y1="73" x2="248" y2="73" stroke="#B3382C" stroke-width="5"/>
+          <path d="M 248,66 L 262,73 L 248,80 Z" fill="#B3382C"/>
+          <circle cx="274" cy="73" r="8" fill="#FAFAF7" stroke="#B3382C" stroke-width="1.6"/>
+          <text x="20" y="142" font-family="STIX Two Text, serif" font-style="italic" font-size="14.5" fill="#1B1B18">many victims in &mdash; one sweep out</text>
+          <text x="330" y="12" font-family="IBM Plex Mono, monospace" font-size="10.5" letter-spacing="1" fill="#6B6A62">burstiness &#8811; 0</text>
+          <line x1="330" y1="50" x2="556" y2="50" stroke="#DCDAD2" stroke-width="1"/>
+          <g stroke="#2E4FA8" stroke-width="1.6">
+            <line x1="342" y1="42" x2="342" y2="58"/><line x1="370" y1="42" x2="370" y2="58"/>
+            <line x1="398" y1="42" x2="398" y2="58"/><line x1="426" y1="42" x2="426" y2="58"/>
+            <line x1="454" y1="42" x2="454" y2="58"/><line x1="482" y1="42" x2="482" y2="58"/>
+            <line x1="510" y1="42" x2="510" y2="58"/><line x1="538" y1="42" x2="538" y2="58"/>
+          </g>
+          <text x="330" y="76" font-family="STIX Two Text, serif" font-style="italic" font-size="14" fill="#2E4FA8">ordinary wallet &mdash; steady</text>
+          <line x1="330" y1="112" x2="556" y2="112" stroke="#DCDAD2" stroke-width="1"/>
+          <g stroke="#B3382C" stroke-width="1.6">
+            <line x1="338" y1="104" x2="338" y2="120"/><line x1="344" y1="104" x2="344" y2="120"/>
+            <line x1="350" y1="104" x2="350" y2="120"/><line x1="357" y1="104" x2="357" y2="120"/>
+            <line x1="363" y1="104" x2="363" y2="120"/><line x1="371" y1="104" x2="371" y2="120"/>
+          </g>
+          <text x="330" y="142" font-family="STIX Two Text, serif" font-style="italic" font-size="14.5" fill="#B3382C">scam wallet &mdash; burst, then silence</text>
+        </svg>
+        <div class="figcap" style="margin-top:16px"><b>Fig. 2</b> &mdash; two features that encode a fraud pattern. Graph features: degree, in/out degree, PageRank, clustering, community size, neighbour risk.</div>
+      </div>
+      <div class="col" style="flex:.95">
+        <table class="dec">
+          <tr><td>715 &#8594; 652 labels</td><td>one wallet, several campaigns &mdash; duplicates would span the split</td></tr>
+          <tr><td>empty addresses kept</td><td>deleting them shifts class balance and hides a real case</td></tr>
+          <tr><td>gasUsed dropped</td><td>the API returns 0 on many real transfers</td></tr>
+          <tr><td>scaler in pipeline</td><td>the app cannot preprocess differently than training did</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 7 · THE SPLIT ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;4</b> &nbsp;Modeling</div>
+  <h2>The split is temporal, not random</h2>
+  <p class="dek">Scam operations run clusters of sibling wallets. A random split puts siblings on both sides, and the model recognises the cluster instead of generalising.</p>
+  <div class="body">
+    <div class="fig-wide">
+      <svg width="880" viewBox="0 0 560 92" role="img" aria-label="Temporal split: earliest 70 percent train, latest 30 percent test">
+        <rect x="0" y="14" width="392" height="40" fill="#93A9DC" fill-opacity=".5" stroke="#2E4FA8" stroke-width="1.2"/>
+        <rect x="392" y="14" width="168" height="40" fill="#B3382C" fill-opacity=".14" stroke="#B3382C" stroke-width="1.2"/>
+        <text x="196" y="39" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#1B1B18">TRAIN &#183; earliest 70%</text>
+        <text x="476" y="39" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="12" fill="#B3382C">TEST &#183; latest 30%</text>
+        <text x="0" y="76" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#6B6A62">5-fold CV &amp; tuning here</text>
+        <text x="560" y="76" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#B3382C">touched once, at scoring</text>
+      </svg>
+      <div class="figcap" style="text-align:center;margin-top:6px"><b>Fig. 3</b> &mdash; addresses ordered by first on-chain appearance. Learn from what is known; score what came later.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 8 · LEAKAGE GUARD ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;4</b> &nbsp;Leakage</div>
+  <h2>The feature that could have leaked</h2>
+  <div class="body">
+    <div class="callout">
+      <p><span class="mono-inline">neighbour_risk_ratio</span> asks &ldquo;what fraction of my labelled neighbours are illicit?&rdquo; Computed over <em class="term">all</em> labels, it leaks the answer outright.</p>
+    </div>
+    <div class="callout blue" style="margin-top:34px">
+      <p>So <code>graph.py</code> takes visible labels as an argument, and training passes <b>the training split&rsquo;s labels only</b>.</p>
+    </div>
+    <p class="note" style="margin-top:40px">PINNED BY UNIT TESTS &mdash; <b>including that an address can never read its own label back through a self-loop.</b></p>
+  </div>
+</section>
+
+<!-- ============ 9 · FOUR TIERS ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;4</b> &nbsp;Modeling</div>
+  <h2>Four tiers, one experiment</h2>
+  <div class="body">
+    <div class="tier"><span class="tn">TIER 1</span><span class="tt"><b>Majority class.</b> <span>always &ldquo;licit&rdquo; &mdash; the baseline to beat and report</span></span></div>
+    <div class="tier"><span class="tn">TIER 2</span><span class="tt"><b>Behaviour only.</b> <span>logistic regression &amp; random forest, 29 features</span></span></div>
+    <div class="tier"><span class="tn">TIER 3</span><span class="tt"><b>Behaviour + graph.</b> <span>the same two models; only the feature set changes</span></span></div>
+    <div class="tier"><span class="tn">TIER 4</span><span class="tt"><b>Graph neural network.</b> <span>GraphSAGE on the raw address graph &mdash; no hand-made features</span></span></div>
+    <p class="note" style="margin-top:30px">CLASS-WEIGHTED &#183; 5-FOLD CV ON THE TRAINING SPLIT ONLY &#183; ONE TEMPORAL SPLIT THROUGHOUT</p>
+  </div>
+</section>
+
+<!-- ============ 10 · RESULTS ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;5</b> &nbsp;Results</div>
+  <h2>Nothing changes but the feature set</h2>
+  <div class="body">
+    <div class="r-cols">
+      <div class="r-chart">
+        <div class="legend">
+          <span><span class="sw" style="background:#93A9DC"></span>behaviour</span>
+          <span><span class="sw" style="background:#2E4FA8"></span>&#43; graph features</span>
+          <span><span class="sw" style="background:#2F6F62"></span>raw graph</span>
+        </div>
+        <svg id="chartTiers" width="100%" viewBox="0 0 640 332" role="img" aria-label="F1 on the illicit class by model and tier"></svg>
+      </div>
+      <div class="r-side">
+        <div class="kstat"><div class="v accent-b"><i>F</i><sub>1</sub> = 0.890</div><div class="k">shipped &#183; RF + graph</div></div>
+        <div class="kstat"><div class="v">129<span class="dim"> of </span>133</div><div class="k">scams caught on test</div></div>
+        <div class="kstat"><div class="v accent-c">28</div><div class="k">false alarms &#183; the review queue</div></div>
+      </div>
+    </div>
+    <div class="figcap" style="margin-top:14px"><b>Fig. 4</b> &mdash; <i>F</i><sub>1</sub> on the illicit class, held-out temporal test split (856 addresses, 133 illicit).</div>
+  </div>
+</section>
+
+<!-- ============ 11 · DOES THE GRAPH HELP ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;5</b> &nbsp;The question</div>
+  <h2>Does the graph help?</h2>
+  <p class="dek">Yes &mdash; but modestly, and it depends on the model.</p>
+  <div class="body">
+    <div class="trio">
+      <div class="c"><div class="v accent-b">+0.075</div><div class="k"><i>F</i><sub>1</sub> &#183; logistic regression<br>a linear model cannot build this itself</div></div>
+      <div class="c"><div class="v">+0.009</div><div class="k"><i>F</i><sub>1</sub> &#183; random forest<br>+0.017 PR-AUC</div></div>
+      <div class="c"><div class="v">&#8776;9%</div><div class="k">of forest importance<br>out_degree, community_size, pagerank</div></div>
+    </div>
+    <p class="dek" style="margin-top:44px;max-width:44em">We would rather report +0.009 accurately than round it into a story. Our graph is one hop deep &mdash; this is a floor, not a ceiling.</p>
+  </div>
+</section>
+
+<!-- ============ 12 · THE GNN ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;5</b> &nbsp;Graph neural network</div>
+  <h2>What if the model reads the graph itself?</h2>
+  <div class="body">
+    <div class="r-cols" style="gap:64px">
+      <div class="col" style="flex:1.1">
+        <p class="dek" style="margin-top:0;max-width:none">A two-layer <b style="color:var(--ink);font-style:normal">GraphSAGE</b> over all 44,432 nodes &mdash; including unlabelled neighbours &mdash; given <em class="term">no</em> graph features at all. It has to rediscover what network context means by passing messages along the edges.</p>
+        <p class="note" style="margin-top:28px">SAME TEMPORAL SPLIT &#183; SCALER ON TRAINING ROWS ONLY<br><b>neighbour_risk_ratio withheld &mdash; feeding it our answer would make the comparison circular.</b></p>
+      </div>
+      <div class="col" style="flex:.8">
+        <div class="kstat"><div class="v accent-t"><i>F</i><sub>1</sub> = 0.831</div><div class="k">tier 4 &#183; GraphSAGE</div></div>
+        <div class="kstat"><div class="v">0.884</div><div class="k">PR-AUC</div></div>
+        <div class="kstat"><div class="v">128<span class="dim"> of </span>133</div><div class="k">scams caught &#183; 96% recall</div></div>
+      </div>
+    </div>
+    <p class="dek" style="margin-top:34px;max-width:46em">It loses to the forest on precision &mdash; 1,996 labelled training nodes is a small corpus for learned features. <b style="color:var(--ink);font-style:normal">That the forest still wins is evidence our feature engineering wasn&rsquo;t leaving much behind.</b></p>
+  </div>
+</section>
+
+<!-- ============ 13 · SENSITIVITY ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;6</b> &nbsp;Evaluation</div>
+  <h2>Is the signal real?</h2>
+  <p class="dek">Licit addresses were sampled from random blocks, so busy addresses are over-picked: <b style="color:var(--ink);font-style:normal">61%</b> hit the 100-transaction cap, against <b style="color:var(--ink);font-style:normal">8%</b> of illicit ones.</p>
+  <div class="body">
+    <div class="fig-wide">
+      <svg id="chartSens" width="740" viewBox="0 0 620 232" role="img" aria-label="Sensitivity analysis: three tests against the headline F1"></svg>
+      <div class="figcap" style="text-align:center"><b>Fig. 5</b> &mdash; within activity-matched pairs, activity carries no information by construction &mdash; and <i>F</i><sub>1</sub> does not drop. <b>The confound is genuine but not load-bearing.</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 14 · CODE STRUCTURE ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;7</b> &nbsp;Code</div>
+  <h2>One path from raw chain to application</h2>
+  <div class="body">
+    <div class="pipe">
+      <div class="pnode"><div class="pn">labels.py</div><div class="pk">darklist + era matching</div></div>
+      <div class="parrow">&#8594;</div>
+      <div class="pnode"><div class="pn">collect.py</div><div class="pk">resumable, rate-limit aware</div></div>
+      <div class="parrow">&#8594;</div>
+      <div class="pnode data"><div class="pn">transactions .jsonl.gz</div><div class="pk">frozen &mdash; every stage reads this</div></div>
+      <div class="parrow">&#8594;</div>
+      <div class="pnode"><div class="pn">features.py &#183; graph.py</div><div class="pk">29 + 7 &#183; leakage guard</div></div>
+      <div class="parrow">&#8594;</div>
+      <div class="pnode"><div class="pn">train.py &#183; gnn.py</div><div class="pk">4 tiers, temporal split</div></div>
+      <div class="parrow">&#8594;</div>
+      <div class="pnode data"><div class="pn">model.joblib</div><div class="pk">scaler + classifier together</div></div>
+      <div class="parrow">&#8594;</div>
+      <div class="pnode ship"><div class="pn">app/app.py</div><div class="pk">streamlit + docker</div></div>
+    </div>
+    <div class="cols" style="gap:56px;margin-top:44px;align-items:flex-start">
+      <div class="col">
+        <p class="note" style="letter-spacing:.14em;color:var(--crimson)">NO DUPLICATED PREPROCESSING</p>
+        <p class="dek" style="margin-top:10px;font-size:17px">The app imports <span class="mono-inline">src/features.py</span> rather than reimplementing it &mdash; the classic way a deployed model silently diverges from the one that was evaluated.</p>
+      </div>
+      <div class="col">
+        <p class="note" style="letter-spacing:.14em;color:var(--crimson)">TESTS WHERE BUGS HIDE</p>
+        <p class="dek" style="margin-top:10px;font-size:17px">Cursor construction, feature arithmetic on hand-built transactions, the leakage guard, the saved scaler.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 15 · APPLICATION ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;8</b> &nbsp;Application</div>
+  <h2>A probability and a priority &mdash; never a verdict</h2>
+  <div class="body">
+    <div class="cols" style="gap:64px">
+      <div class="col" style="flex:1.2">
+        <div class="tab"><span class="tno">TAB 1</span><span class="tb"><b>Look up an address.</b> <span>fetched live, scored by the saved pipeline</span></span></div>
+        <div class="tab"><span class="tno">TAB 2</span><span class="tb"><b>Explore features by hand.</b> <span>presets like &ldquo;collect-and-sweep&rdquo;, no network needed</span></span></div>
+        <div class="tab"><span class="tno">TAB 3</span><span class="tb"><b>Model performance.</b> <span>all four tiers, importances, graph statistics</span></span></div>
+      </div>
+      <div class="col" style="flex:.85">
+        <div class="demo-url">
+          <div class="u">eth-illicit-detection.streamlit.app</div>
+          <div class="k">live now &mdash; switching to the app</div>
+        </div>
+        <p class="dek" style="margin-top:30px;font-size:17.5px">The footer states it plainly: a LICIT score means <em class="term">&ldquo;not reported&rdquo;</em>, not &ldquo;cleared&rdquo;. A flag is a candidate for review, not a suspect.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 16 · TASK DIVISION & FURTHER WORK ============ -->
+<section class="slide">
+  <div class="eyebrow"><b>&sect;9</b> &nbsp;Closing</div>
+  <h2>Task division &amp; further work</h2>
+  <div class="body">
+    <div class="cols" style="gap:52px;align-items:flex-start">
+      <div class="col who">
+        <div class="name">Sanskriti</div>
+        <ul>
+          <li>Blockscout client &amp; collector</li>
+          <li>labels &amp; era-matched sampling</li>
+          <li>EDA notebook</li>
+          <li>Streamlit app &amp; deployment</li>
+        </ul>
+      </div>
+      <div class="col who">
+        <div class="name">Sweta</div>
+        <ul>
+          <li>behavioural &amp; graph features</li>
+          <li>leakage guard, unit tests</li>
+          <li>four-tier training &amp; the GNN</li>
+          <li>sensitivity analysis</li>
+        </ul>
+      </div>
+      <div class="col who">
+        <div class="name">Further work</div>
+        <ul>
+          <li>crawl one hop deeper</li>
+          <li>more positives &mdash; add OFAC</li>
+          <li>recalibrate to the true base rate</li>
+          <li>measure rate limits before designing around them</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 17 · ANSWER ============ -->
+<section class="slide">
+  <div class="closing">
+    <div class="q">Can an address&rsquo;s network reveal fraud its own features cannot?</div>
+    <div class="a"><em>Yes</em> &mdash; decisive for a linear model, marginal for a forest, and confirmed by a network that reads the raw graph without beating the features we built by hand.</div>
+    <p class="note" style="margin-top:44px">SANSKRITI ACHARYA &amp; SWETA SHARMA &#183; ETH-ILLICIT-DETECTION.STREAMLIT.APP</p>
+  </div>
+</section>
+
+</div>
+
+<div id="hud">
+  <button id="prev" aria-label="Previous slide">&#8592;</button>
+  <button id="next" aria-label="Next slide">&#8594;</button>
+</div>
+
+<script>
+(function(){
+  var slides=[].slice.call(document.querySelectorAll('.slide')),i=0;
+  function show(n){i=Math.max(0,Math.min(slides.length-1,n));
+    slides.forEach(function(s,j){s.classList.toggle('on',j===i);});}
+  document.getElementById('next').onclick=function(){show(i+1)};
+  document.getElementById('prev').onclick=function(){show(i-1)};
+  addEventListener('keydown',function(e){
+    if(e.key==='ArrowRight'||e.key===' '||e.key==='PageDown'){show(i+1);e.preventDefault();}
+    if(e.key==='ArrowLeft'||e.key==='PageUp'){show(i-1);e.preventDefault();}
+    if(e.key==='Home'){show(0);e.preventDefault();}
+    if(e.key==='End'){show(slides.length-1);e.preventDefault();}
+  });
+  function fit(){var s=Math.min(innerWidth/1280,innerHeight/720);
+    document.getElementById('stage').style.transform='translate(-50%,-50%) scale('+s+')';}
+  addEventListener('resize',fit);fit();
+
+  function barPath(x,y,w,h,r){return 'M'+x+','+y+' h'+Math.max(0,w-r)+' a'+r+','+r+' 0 0 1 '+r+','+r+
+    ' v'+(h-2*r)+' a'+r+','+r+' 0 0 1 -'+r+','+r+' h-'+Math.max(0,w-r)+' z';}
+
+  /* Fig. 4 - four tiers */
+  (function(){
+    var groups=[
+      {group:'logistic regression',rows:[{k:'behaviour',v:0.737,c:'#93A9DC'},{k:'+ graph',v:0.812,c:'#2E4FA8'}]},
+      {group:'random forest',rows:[{k:'behaviour',v:0.881,c:'#93A9DC'},{k:'+ graph',v:0.890,c:'#2E4FA8'}]},
+      {group:'GraphSAGE',rows:[{k:'raw graph',v:0.831,c:'#2F6F62'}]}
+    ];
+    var x0=196,x1=616,bh=28,gapIn=5,gapGrp=42,top=26;
+    var nBars=0,inGaps=0;
+    groups.forEach(function(g){nBars+=g.rows.length;inGaps+=(g.rows.length-1)*gapIn;});
+    var H=nBars*bh+inGaps+(groups.length-1)*gapGrp, bot=top+H;
+    function X(v){return x0+(x1-x0)*v;}
+    var s='';
+    [0,.25,.5,.75,1].forEach(function(t){var gx=X(t);
+      s+='<line x1="'+gx+'" y1="'+(top-14)+'" x2="'+gx+'" y2="'+(bot+8)+'" stroke="#EAE8E1" stroke-width="1"/>';
+      s+='<text x="'+gx+'" y="'+(bot+30)+'" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#6B6A62">'+t.toFixed(2)+'</text>';});
+    var y=top;
+    groups.forEach(function(g){
+      var gh=g.rows.length*bh+(g.rows.length-1)*gapIn;
+      s+='<text x="'+(x0-16)+'" y="'+(y+gh/2+4)+'" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="12" fill="#1B1B18">'+g.group+'</text>';
+      g.rows.forEach(function(r){
+        var w=X(r.v)-x0;
+        s+='<path d="'+barPath(x0,y,w,bh,4)+'" fill="'+r.c+'"><title>'+g.group+' - '+r.k+' - F1 '+r.v.toFixed(3)+'</title></path>';
+        s+='<text x="'+(x0+w+10)+'" y="'+(y+bh/2+5)+'" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600" fill="#1B1B18">'+r.v.toFixed(3)+'</text>';
+        y+=bh+gapIn;});
+      y+=gapGrp-gapIn;});
+    s+='<line x1="'+x0+'" y1="'+(top-14)+'" x2="'+x0+'" y2="'+(bot+8)+'" stroke="#1B1B18" stroke-width="1.2"/>';
+    s+='<text x="'+x0+'" y="'+(bot+58)+'" font-family="IBM Plex Mono, monospace" font-size="11" fill="#B3382C">&#9650; tier 1 baseline &#183; F&#8321; = 0.000</text>';
+    s+='<text x="'+x1+'" y="'+(bot+58)+'" text-anchor="end" font-family="STIX Two Text, serif" font-style="italic" font-size="13" fill="#6B6A62">F&#8321;, illicit class &#8594;</text>';
+    document.getElementById('chartTiers').innerHTML=s;
+  })();
+
+  /* Fig. 5 - sensitivity */
+  (function(){
+    var rows=[
+      {label:'n_tx alone',v:0.836,c:'#93A9DC',note:'the confound is real'},
+      {label:'activity features removed',v:0.887,c:'#93A9DC',note:'16 features dropped'},
+      {label:'activity-matched pairs',v:0.892,c:'#2E4FA8',note:'the decisive test'}
+    ];
+    var x0=252,x1=560,bh=30,gap=22,top=34;
+    function X(v){return x0+(x1-x0)*v;}
+    var s='',y=top,bot=top+3*(bh+gap)-gap;
+    [0,.25,.5,.75,1].forEach(function(t){var gx=X(t);
+      s+='<line x1="'+gx+'" y1="'+(top-14)+'" x2="'+gx+'" y2="'+(bot+10)+'" stroke="#EAE8E1" stroke-width="1"/>';
+      s+='<text x="'+gx+'" y="'+(bot+32)+'" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="11" fill="#6B6A62">'+t.toFixed(2)+'</text>';});
+    rows.forEach(function(r){
+      var w=X(r.v)-x0;
+      s+='<text x="'+(x0-16)+'" y="'+(y+bh/2-3)+'" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="12" fill="#1B1B18">'+r.label+'</text>';
+      s+='<text x="'+(x0-16)+'" y="'+(y+bh/2+14)+'" text-anchor="end" font-family="STIX Two Text, serif" font-style="italic" font-size="12.5" fill="#6B6A62">'+r.note+'</text>';
+      s+='<path d="'+barPath(x0,y,w,bh,4)+'" fill="'+r.c+'"><title>'+r.label+' - F1 '+r.v.toFixed(3)+'</title></path>';
+      s+='<text x="'+(x0+w+10)+'" y="'+(y+bh/2+5)+'" font-family="IBM Plex Mono, monospace" font-size="13" font-weight="600" fill="#1B1B18" stroke="#FAFAF7" stroke-width="4" paint-order="stroke">'+r.v.toFixed(3)+'</text>';
+      y+=bh+gap;});
+    var hx=X(0.890);
+    s+='<line x1="'+hx+'" y1="'+(top-20)+'" x2="'+hx+'" y2="'+(bot+10)+'" stroke="#B3382C" stroke-width="1.4" stroke-dasharray="4 3"/>';
+    s+='<text x="'+(hx-6)+'" y="'+(top-26)+'" text-anchor="end" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="#B3382C">headline 0.890</text>';
+    s+='<line x1="'+x0+'" y1="'+(top-14)+'" x2="'+x0+'" y2="'+(bot+10)+'" stroke="#1B1B18" stroke-width="1.2"/>';
+    s+='<text x="'+x1+'" y="'+(bot+56)+'" text-anchor="end" font-family="STIX Two Text, serif" font-style="italic" font-size="13" fill="#6B6A62">F&#8321;, illicit class &#8594;</text>';
+    document.getElementById('chartSens').innerHTML=s;
+  })();
+})();
+</script>
